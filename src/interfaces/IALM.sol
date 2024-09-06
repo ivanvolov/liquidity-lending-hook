@@ -4,18 +4,18 @@ pragma solidity ^0.8.25;
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId} from "v4-core/types/PoolId.sol";
 
-interface IOption {
+interface IALM {
     error ZeroLiquidity();
 
     error AddLiquidityThroughHook();
 
     error InRange();
 
-    error NotAnOptionOwner();
+    error NotAnALMOwner();
 
     error NoSwapWillOccur();
 
-    struct OptionInfo {
+    struct ALMInfo {
         uint256 amount;
         int24 tick;
         int24 tickLower;
@@ -24,9 +24,7 @@ interface IOption {
         uint256 fee;
     }
 
-    function getOptionInfo(
-        uint256 optionId
-    ) external view returns (OptionInfo memory);
+    function getALMInfo(uint256 almId) external view returns (ALMInfo memory);
 
     function priceScalingFactor() external view returns (uint256);
 
@@ -40,18 +38,14 @@ interface IOption {
         PoolKey calldata key,
         uint256 amount,
         address to
-    ) external returns (uint256 optionId);
+    ) external returns (uint256 almId);
 
-    function withdraw(
-        PoolKey calldata key,
-        uint256 optionId,
-        address to
-    ) external;
+    function withdraw(PoolKey calldata key, uint256 almId, address to) external;
 
     function getCurrentTick(PoolId poolId) external view returns (int24);
 
-    function getOptionPosition(
+    function getALMPosition(
         PoolKey memory key,
-        uint256 optionId
+        uint256 almId
     ) external view returns (uint128, int24, int24);
 }

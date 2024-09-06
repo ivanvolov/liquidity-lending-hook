@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
-import {OptionBaseLib} from "@src/libraries/OptionBaseLib.sol";
+import {ALMBaseLib} from "@src/libraries/ALMBaseLib.sol";
 
 import {Position} from "v4-core/libraries/Position.sol";
 import {Currency} from "v4-core/types/Currency.sol";
@@ -19,17 +19,16 @@ import {IERC20Minimal as IERC20} from "v4-core/interfaces/external/IERC20Minimal
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IWETH} from "@forks/IWETH.sol";
 import {IMorpho, Id} from "@forks/morpho/IMorpho.sol";
-import {IOption} from "@src/interfaces/IOption.sol";
-import {IHedgehogLoyaltyMock} from "@src/interfaces/IHedgehogLoyaltyMock.sol";
+import {IALM} from "@src/interfaces/IALM.sol";
 
-abstract contract BaseOptionHook is BaseHook, IOption {
+abstract contract BaseStrategyHook is BaseHook, IALM {
     error NotHookDeployer();
     using CurrencySettler for Currency;
 
-    IERC20 WSTETH = IERC20(OptionBaseLib.WSTETH);
-    IWETH WETH = IWETH(OptionBaseLib.WETH);
-    IERC20 USDC = IERC20(OptionBaseLib.USDC);
-    IERC20 OSQTH = IERC20(OptionBaseLib.OSQTH);
+    IERC20 WSTETH = IERC20(ALMBaseLib.WSTETH);
+    IWETH WETH = IWETH(ALMBaseLib.WETH);
+    IERC20 USDC = IERC20(ALMBaseLib.USDC);
+    IERC20 OSQTH = IERC20(ALMBaseLib.OSQTH);
 
     Id public immutable morphoMarketId;
 
@@ -38,8 +37,6 @@ abstract contract BaseOptionHook is BaseHook, IOption {
 
     bytes internal constant ZERO_BYTES = bytes("");
     address public immutable hookDeployer;
-
-    IHedgehogLoyaltyMock public loyalty;
 
     uint256 public priceScalingFactor = 2;
     uint256 public cRatio = 2;
@@ -66,19 +63,18 @@ abstract contract BaseOptionHook is BaseHook, IOption {
         performanceFee = _performanceFee;
     }
 
-    function getUserFee(address user) public view returns (uint256) {
-        if (loyalty.isLoyal(user) == 0) return performanceFee;
-        return 0;
+    function getUserFee() public view returns (uint256) {
+        return performanceFee;
     }
 
     mapping(PoolId => int24) lastTick;
-    uint256 public optionIdCounter = 0;
-    mapping(uint256 => OptionInfo) optionInfo;
+    uint256 public almIdCounter = 0;
+    mapping(uint256 => ALMInfo) almInfo;
 
-    function getOptionInfo(
-        uint256 optionId
-    ) external view override returns (OptionInfo memory) {
-        return optionInfo[optionId];
+    function getALMInfo(
+        uint256 almId
+    ) external view override returns (ALMInfo memory) {
+        return almInfo[almId];
     }
 
     function getTickLast(PoolId poolId) public view override returns (int24) {
@@ -89,11 +85,7 @@ abstract contract BaseOptionHook is BaseHook, IOption {
         lastTick[poolId] = _tick;
     }
 
-    constructor(
-        IPoolManager _poolManager,
-        IHedgehogLoyaltyMock _loyalty
-    ) BaseHook(_poolManager) {
-        loyalty = _loyalty;
+    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
         hookDeployer = msg.sender;
     }
 
@@ -129,11 +121,11 @@ abstract contract BaseOptionHook is BaseHook, IOption {
         return currentTick;
     }
 
-    function getOptionPosition(
+    function getALMPosition(
         PoolKey memory key,
-        uint256 optionId
+        uint256 almId
     ) public view override returns (uint128, int24, int24) {
-        OptionInfo memory info = optionInfo[optionId];
+        ALMInfo memory info = almInfo[almId];
 
         (uint128 liquidity, , ) = StateLibrary.getPositionInfo(
             poolManager,

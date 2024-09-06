@@ -7,7 +7,7 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import "@src/libraries/math/FixedPointMathLib.sol";
 import "@src/libraries/math/PRBMathUD60x18.sol";
 
-library OptionMathLib {
+library ALMMathLib {
     using FixedPointMathLib for uint256;
 
     function getPriceFromTick(int24 tick) internal pure returns (uint256) {

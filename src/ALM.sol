@@ -4,8 +4,8 @@ pragma solidity ^0.8.25;
 import "forge-std/console.sol";
 
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {OptionMathLib} from "@src/libraries/OptionMathLib.sol";
-import {OptionBaseLib} from "@src/libraries/OptionBaseLib.sol";
+import {ALMMathLib} from "@src/libraries/ALMMathLib.sol";
+import {ALMBaseLib} from "@src/libraries/ALMBaseLib.sol";
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
@@ -13,23 +13,21 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {LiquidityAmounts} from "v4-core/../test/utils/LiquidityAmounts.sol";
 
 import {ERC721} from "permit2/lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import {BaseOptionHook} from "@src/BaseOptionHook.sol";
+import {BaseStrategyHook} from "@src/BaseStrategyHook.sol";
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Position as MorphoPosition, Id, Market} from "@forks/morpho/IMorpho.sol";
-import {IHedgehogLoyaltyMock} from "@src/interfaces/IHedgehogLoyaltyMock.sol";
 
-/// @title Call like wstETH option
+/// @title ALM
 /// @author IVikkk
 /// @custom:contact vivan.volovik@gmail.com
-contract CallETH is BaseOptionHook, ERC721 {
+contract ALM is BaseStrategyHook, ERC721 {
     using PoolIdLibrary for PoolKey;
 
     constructor(
         IPoolManager poolManager,
-        Id _morphoMarketId,
-        IHedgehogLoyaltyMock _loyalty
-    ) BaseOptionHook(poolManager, _loyalty) ERC721("CallETH", "CALL") {
+        Id _morphoMarketId
+    ) BaseStrategyHook(poolManager) ERC721("ALM", "ALM") {
         morphoMarketId = _morphoMarketId;
     }
 
@@ -42,17 +40,17 @@ contract CallETH is BaseOptionHook, ERC721 {
     ) external override returns (bytes4) {
         console.log(">> afterInitialize");
 
-        USDC.approve(OptionBaseLib.SWAP_ROUTER, type(uint256).max);
-        WETH.approve(OptionBaseLib.SWAP_ROUTER, type(uint256).max);
-        WSTETH.approve(OptionBaseLib.SWAP_ROUTER, type(uint256).max);
-        OSQTH.approve(OptionBaseLib.SWAP_ROUTER, type(uint256).max);
+        USDC.approve(ALMBaseLib.SWAP_ROUTER, type(uint256).max);
+        WETH.approve(ALMBaseLib.SWAP_ROUTER, type(uint256).max);
+        WSTETH.approve(ALMBaseLib.SWAP_ROUTER, type(uint256).max);
+        OSQTH.approve(ALMBaseLib.SWAP_ROUTER, type(uint256).max);
 
         WSTETH.approve(address(morpho), type(uint256).max);
         USDC.approve(address(morpho), type(uint256).max);
 
         setTickLast(key.toId(), tick);
 
-        return CallETH.afterInitialize.selector;
+        return ALM.afterInitialize.selector;
     }
 
     /// @notice  Disable adding liquidity through the PM
@@ -69,7 +67,7 @@ contract CallETH is BaseOptionHook, ERC721 {
         PoolKey calldata key,
         uint256 amount,
         address to
-    ) external override returns (uint256 optionId) {
+    ) external override returns (uint256 almId) {
         console.log(">> deposit");
         if (amount == 0) revert ZeroLiquidity();
         WSTETH.transferFrom(msg.sender, address(this), amount);
@@ -78,10 +76,9 @@ contract CallETH is BaseOptionHook, ERC721 {
         int24 tickUpper;
         {
             tickLower = getCurrentTick(key.toId());
-            tickUpper = OptionMathLib.tickRoundDown(
-                OptionMathLib.getTickFromPrice(
-                    OptionMathLib.getPriceFromTick(tickLower) *
-                        priceScalingFactor
+            tickUpper = ALMMathLib.tickRoundDown(
+                ALMMathLib.getTickFromPrice(
+                    ALMMathLib.getPriceFromTick(tickLower) * priceScalingFactor
                 ),
                 key.tickSpacing
             );
@@ -104,33 +101,33 @@ contract CallETH is BaseOptionHook, ERC721 {
         }
 
         morphoSupplyCollateral(WSTETH.balanceOf(address(this)));
-        optionId = optionIdCounter;
+        almId = almIdCounter;
 
-        optionInfo[optionId] = OptionInfo({
+        almInfo[almId] = ALMInfo({
             amount: amount,
             tick: getCurrentTick(key.toId()),
             tickLower: tickLower,
             tickUpper: tickUpper,
             created: block.timestamp,
-            fee: getUserFee(msg.sender)
+            fee: getUserFee()
         });
 
-        _mint(to, optionId);
-        optionIdCounter++;
+        _mint(to, almId);
+        almIdCounter++;
     }
 
     function withdraw(
         PoolKey calldata key,
-        uint256 optionId,
+        uint256 almId,
         address to
     ) external override {
         console.log(">> withdraw");
-        if (ownerOf(optionId) != msg.sender) revert NotAnOptionOwner();
+        if (ownerOf(almId) != msg.sender) revert NotAnALMOwner();
 
         //** swap all OSQTH in WSTETH
         uint256 balanceOSQTH = OSQTH.balanceOf(address(this));
         if (balanceOSQTH != 0) {
-            OptionBaseLib.swapOSQTH_WSTETH_In(uint256(int256(balanceOSQTH)));
+            ALMBaseLib.swapOSQTH_WSTETH_In(uint256(int256(balanceOSQTH)));
         }
 
         //** close position into WSTETH & USDC
@@ -139,7 +136,7 @@ contract CallETH is BaseOptionHook, ERC721 {
                 uint128 liquidity,
                 int24 tickLower,
                 int24 tickUpper
-            ) = getOptionPosition(key, optionId);
+            ) = getALMPosition(key, almId);
 
             poolManager.unlock(
                 abi.encodeCall(
@@ -161,13 +158,13 @@ contract CallETH is BaseOptionHook, ERC721 {
         if (usdcToRepay != 0) {
             uint256 balanceUSDC = USDC.balanceOf(address(this));
             if (usdcToRepay > balanceUSDC) {
-                OptionBaseLib.swapExactOutput(
+                ALMBaseLib.swapExactOutput(
                     address(WSTETH),
                     address(USDC),
                     usdcToRepay - balanceUSDC
                 );
             } else {
-                OptionBaseLib.swapExactOutput(
+                ALMBaseLib.swapExactOutput(
                     address(USDC),
                     address(WSTETH),
                     balanceUSDC
@@ -180,7 +177,7 @@ contract CallETH is BaseOptionHook, ERC721 {
         morphoWithdrawCollateral(p.collateral);
         WSTETH.transfer(to, WSTETH.balanceOf(address(this)));
 
-        delete optionInfo[optionId];
+        delete almInfo[almId];
     }
 
     function afterSwap(
@@ -200,7 +197,7 @@ contract CallETH is BaseOptionHook, ERC721 {
             console.log("> price go up...");
 
             morphoBorrow(uint256(int256(-deltas.amount1())), 0);
-            OptionBaseLib.swapUSDC_OSQTH_In(uint256(int256(-deltas.amount1())));
+            ALMBaseLib.swapUSDC_OSQTH_In(uint256(int256(-deltas.amount1())));
         } else if (tick < getTickLast(key.toId())) {
             console.log("> price go down...");
 
@@ -209,7 +206,7 @@ contract CallETH is BaseOptionHook, ERC721 {
                 address(this)
             );
             if (p.borrowShares != 0) {
-                OptionBaseLib.swapOSQTH_USDC_Out(
+                ALMBaseLib.swapOSQTH_USDC_Out(
                     uint256(int256(deltas.amount1()))
                 );
 
@@ -220,7 +217,7 @@ contract CallETH is BaseOptionHook, ERC721 {
         }
 
         setTickLast(key.toId(), tick);
-        return (CallETH.afterSwap.selector, 0);
+        return (ALM.afterSwap.selector, 0);
     }
 
     function tokenURI(uint256) public pure override returns (string memory) {

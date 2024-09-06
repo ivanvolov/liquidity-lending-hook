@@ -6,23 +6,22 @@ import "forge-std/console.sol";
 
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {MarketParamsLib} from "@forks/morpho/MarketParamsLib.sol";
-import {OptionBaseLib} from "@src/libraries/OptionBaseLib.sol";
+import {ALMBaseLib} from "@src/libraries/ALMBaseLib.sol";
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IChainlinkOracle} from "@forks/morpho-oracles/IChainlinkOracle.sol";
 import {IMorpho, MarketParams, Position as MorphoPosition, Id} from "@forks/morpho/IMorpho.sol";
-import {IOption} from "@src/interfaces/IOption.sol";
+import {IALM} from "@src/interfaces/IALM.sol";
 
 import {TestERC20} from "v4-core/test/TestERC20.sol";
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {HookEnabledSwapRouter} from "@test/libraries/HookEnabledSwapRouter.sol";
 import {TestAccount, TestAccountLib} from "@test/libraries/TestAccountLib.t.sol";
-import {HedgehogLoyaltyMock} from "@test/libraries/HedgehogLoyaltyMock.sol";
 
-abstract contract OptionTestBase is Test, Deployers {
+abstract contract ALMTestBase is Test, Deployers {
     using TestAccountLib for TestAccount;
 
-    IOption hook;
+    IALM hook;
 
     TestERC20 WSTETH;
     TestERC20 USDC;
@@ -37,18 +36,16 @@ abstract contract OptionTestBase is Test, Deployers {
     HookEnabledSwapRouter router;
     Id marketId;
     IMorpho morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
-    uint256 optionId;
-
-    HedgehogLoyaltyMock loyalty;
+    uint256 almId;
 
     function labelTokens() public {
-        WSTETH = TestERC20(OptionBaseLib.WSTETH);
+        WSTETH = TestERC20(ALMBaseLib.WSTETH);
         vm.label(address(WSTETH), "WSTETH");
-        USDC = TestERC20(OptionBaseLib.USDC);
+        USDC = TestERC20(ALMBaseLib.USDC);
         vm.label(address(USDC), "USDC");
-        OSQTH = TestERC20(OptionBaseLib.OSQTH);
+        OSQTH = TestERC20(ALMBaseLib.OSQTH);
         vm.label(address(OSQTH), "OSQTH");
-        WETH = TestERC20(OptionBaseLib.WETH);
+        WETH = TestERC20(ALMBaseLib.WETH);
         vm.label(address(WETH), "WETH");
     }
 
@@ -103,14 +100,14 @@ abstract contract OptionTestBase is Test, Deployers {
 
     function getETH_OSQTHPriceV3() public view returns (uint256) {
         return
-            OptionBaseLib.getV3PoolPrice(
+            ALMBaseLib.getV3PoolPrice(
                 0x82c427AdFDf2d245Ec51D8046b41c4ee87F0d29C
             );
     }
 
     function getETH_USDCPriceV3() public view returns (uint256) {
         return
-            OptionBaseLib.getV3PoolPrice(
+            ALMBaseLib.getV3PoolPrice(
                 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
             );
     }
@@ -191,11 +188,11 @@ abstract contract OptionTestBase is Test, Deployers {
 
     // -- Custom assertions -- //
 
-    function assertOptionV4PositionLiquidity(
-        uint256 _optionId,
+    function assertALMV4PositionLiquidity(
+        uint256 _almId,
         uint256 _liquidity
     ) public view {
-        (uint128 liquidity, , ) = hook.getOptionPosition(key, _optionId);
+        (uint128 liquidity, , ) = hook.getALMPosition(key, _almId);
         assertApproxEqAbs(liquidity, _liquidity, 10, "liquidity not equal");
     }
 

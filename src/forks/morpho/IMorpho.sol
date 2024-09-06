@@ -131,7 +131,7 @@ interface IMorphoBase {
     /// the point where `totalBorrowShares` is very large and borrowing overflows.
     function createMarket(MarketParams memory marketParams) external;
 
-    /// @notice Supplies `assets` or `shares` on behalf of `onBehalf`, optionally calling back the caller's
+    /// @notice Supplies `assets` or `shares` on behalf of `onBehalf`, almally calling back the caller's
     /// `onMorphoSupply` function with the given `data`.
     /// @dev Either `assets` or `shares` should be zero. Most use cases should rely on `assets` as an input so the
     /// caller is guaranteed to have `assets` tokens pulled from their balance, but the possibility to mint a specific
@@ -198,7 +198,7 @@ interface IMorphoBase {
         address receiver
     ) external returns (uint256 assetsBorrowed, uint256 sharesBorrowed);
 
-    /// @notice Repays `assets` or `shares` on behalf of `onBehalf`, optionally calling back the caller's
+    /// @notice Repays `assets` or `shares` on behalf of `onBehalf`, almally calling back the caller's
     /// `onMorphoReplay` function with the given `data`.
     /// @dev Either `assets` or `shares` should be zero. To repay max, pass the `shares`'s balance of `onBehalf`.
     /// @dev Repaying an amount corresponding to more shares than borrowed will revert for underflow.
@@ -220,7 +220,7 @@ interface IMorphoBase {
         bytes memory data
     ) external returns (uint256 assetsRepaid, uint256 sharesRepaid);
 
-    /// @notice Supplies `assets` of collateral on behalf of `onBehalf`, optionally calling back the caller's
+    /// @notice Supplies `assets` of collateral on behalf of `onBehalf`, almally calling back the caller's
     /// `onMorphoSupplyCollateral` function with the given `data`.
     /// @dev Interest are not accrued since it's not required and it saves gas.
     /// @dev Supplying a large amount can revert for overflow.
@@ -250,7 +250,7 @@ interface IMorphoBase {
     ) external;
 
     /// @notice Liquidates the given `repaidShares` of debt asset or seize the given `seizedAssets` of collateral on the
-    /// given market `marketParams` of the given `borrower`'s position, optionally calling back the caller's
+    /// given market `marketParams` of the given `borrower`'s position, almally calling back the caller's
     /// `onMorphoLiquidate` function with the given `data`.
     /// @dev Either `seizedAssets` or `repaidShares` should be zero.
     /// @dev Seizing more than the collateral balance will underflow and revert without any error message.

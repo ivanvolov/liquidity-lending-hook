@@ -3,9 +3,9 @@ pragma solidity ^0.8.20;
 
 import {ISwapRouter} from "@forks/ISwapRouter.sol";
 import {IUniswapV3Pool} from "@forks/IUniswapV3Pool.sol";
-import {OptionMathLib} from "@src/libraries/OptionMathLib.sol";
+import {ALMMathLib} from "@src/libraries/ALMMathLib.sol";
 
-library OptionBaseLib {
+library ALMBaseLib {
     error UnsupportedTokenPair();
 
     address constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -81,7 +81,7 @@ library OptionBaseLib {
 
     function getV3PoolPrice(address pool) external view returns (uint256) {
         (, int24 tick, , , , , ) = IUniswapV3Pool(pool).slot0();
-        return OptionMathLib.getPriceFromTick(tick);
+        return ALMMathLib.getPriceFromTick(tick);
     }
 
     //** MultiRouteSwaps
