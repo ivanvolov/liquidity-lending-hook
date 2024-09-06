@@ -14,7 +14,7 @@ import {IMorpho, MarketParams, Position as MorphoPosition, Id} from "@forks/morp
 import {IOption} from "@src/interfaces/IOption.sol";
 
 import {TestERC20} from "v4-core/test/TestERC20.sol";
-import {Deployers} from "v4-core-test/utils/Deployers.sol";
+import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {HookEnabledSwapRouter} from "@test/libraries/HookEnabledSwapRouter.sol";
 import {TestAccount, TestAccountLib} from "@test/libraries/TestAccountLib.t.sol";
 import {HedgehogLoyaltyMock} from "@test/libraries/HedgehogLoyaltyMock.sol";
@@ -192,10 +192,10 @@ abstract contract OptionTestBase is Test, Deployers {
     // -- Custom assertions -- //
 
     function assertOptionV4PositionLiquidity(
-        uint256 optionId,
+        uint256 _optionId,
         uint256 _liquidity
     ) public view {
-        (uint128 liquidity, , ) = hook.getOptionPosition(key, optionId);
+        (uint128 liquidity, , ) = hook.getOptionPosition(key, _optionId);
         assertApproxEqAbs(liquidity, _liquidity, 10, "liquidity not equal");
     }
 

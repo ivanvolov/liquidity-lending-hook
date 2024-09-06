@@ -13,7 +13,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {BaseHook} from "@forks/BaseHook.sol";
+import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
 
 import {IERC20Minimal as IERC20} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -23,6 +23,7 @@ import {IOption} from "@src/interfaces/IOption.sol";
 import {IHedgehogLoyaltyMock} from "@src/interfaces/IHedgehogLoyaltyMock.sol";
 
 abstract contract BaseOptionHook is BaseHook, IOption {
+    error NotHookDeployer();
     using CurrencySettler for Currency;
 
     IERC20 WSTETH = IERC20(OptionBaseLib.WSTETH);
@@ -34,6 +35,9 @@ abstract contract BaseOptionHook is BaseHook, IOption {
 
     IMorpho public constant morpho =
         IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+
+    bytes internal constant ZERO_BYTES = bytes("");
+    address public immutable hookDeployer;
 
     IHedgehogLoyaltyMock public loyalty;
 
@@ -90,6 +94,7 @@ abstract contract BaseOptionHook is BaseHook, IOption {
         IHedgehogLoyaltyMock _loyalty
     ) BaseHook(_poolManager) {
         loyalty = _loyalty;
+        hookDeployer = msg.sender;
     }
 
     function getHookPermissions()
@@ -253,5 +258,11 @@ abstract contract BaseOptionHook is BaseHook, IOption {
 
     function morphoSync() internal {
         morpho.accrueInterest(morpho.idToMarketParams(morphoMarketId));
+    }
+
+    /// @dev Only the hook deployer may call this function
+    modifier onlyHookDeployer() {
+        if (msg.sender != hookDeployer) revert NotHookDeployer();
+        _;
     }
 }

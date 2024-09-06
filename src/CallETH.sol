@@ -11,7 +11,8 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {LiquidityAmounts} from "v4-core/../test/utils/LiquidityAmounts.sol";
-import {ERC721} from "solmate/tokens/ERC721.sol";
+
+import {ERC721} from "permit2/lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {BaseOptionHook} from "@src/BaseOptionHook.sol";
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
