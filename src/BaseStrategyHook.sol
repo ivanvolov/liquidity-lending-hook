@@ -20,17 +20,17 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IWETH} from "@forks/IWETH.sol";
 import {IMorpho, Id} from "@forks/morpho/IMorpho.sol";
 import {IALM} from "@src/interfaces/IALM.sol";
+import {MorphoBalancesLib} from "@forks/morpho/libraries/MorphoBalancesLib.sol";
 
 abstract contract BaseStrategyHook is BaseHook, IALM {
     error NotHookDeployer();
     using CurrencySettler for Currency;
 
-    IERC20 WSTETH = IERC20(ALMBaseLib.WSTETH);
     IWETH WETH = IWETH(ALMBaseLib.WETH);
     IERC20 USDC = IERC20(ALMBaseLib.USDC);
-    IERC20 OSQTH = IERC20(ALMBaseLib.OSQTH);
 
-    Id public immutable morphoMarketId;
+    Id public immutable borrowWETHmarketId;
+    Id public immutable borrowUSDCmarketId;
 
     IMorpho public constant morpho =
         IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
@@ -103,11 +103,11 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
                 afterAddLiquidity: false,
                 beforeRemoveLiquidity: false,
                 afterRemoveLiquidity: false,
-                beforeSwap: false,
-                afterSwap: true,
+                beforeSwap: true,
+                afterSwap: false,
                 beforeDonate: false,
                 afterDonate: false,
-                beforeSwapReturnDelta: false,
+                beforeSwapReturnDelta: true,
                 afterSwapReturnDelta: false,
                 afterAddLiquidityReturnDelta: false,
                 afterRemoveLiquidityReturnDelta: false
@@ -138,70 +138,66 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         return (liquidity, info.tickLower, info.tickUpper);
     }
 
-    function unlockModifyPosition(
-        PoolKey calldata key,
-        int128 liquidity,
-        int24 tickLower,
-        int24 tickUpper
-    ) external selfOnly returns (bytes memory) {
-        console.log("> unlockModifyPosition");
+    // function unlockModifyPosition(
+    //     PoolKey calldata key,
+    //     int128 liquidity,
+    //     int24 tickLower,
+    //     int24 tickUpper
+    // ) external selfOnly returns (bytes memory) {
+    //     console.log("> unlockModifyPosition");
 
-        (BalanceDelta delta, ) = poolManager.modifyLiquidity(
-            key,
-            IPoolManager.ModifyLiquidityParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                liquidityDelta: liquidity,
-                salt: bytes32(ZERO_BYTES)
-            }),
-            ZERO_BYTES
-        );
+    //     (BalanceDelta delta, ) = poolManager.modifyLiquidity(
+    //         key,
+    //         IPoolManager.ModifyLiquidityParams({
+    //             tickLower: tickLower,
+    //             tickUpper: tickUpper,
+    //             liquidityDelta: liquidity,
+    //             salt: bytes32(ZERO_BYTES)
+    //         }),
+    //         ZERO_BYTES
+    //     );
 
-        if (delta.amount0() < 0) {
-            key.currency0.settle(
-                poolManager,
-                address(this),
-                uint256(uint128(-delta.amount0())),
-                false
-            );
-        }
+    //     if (delta.amount0() < 0) {
+    //         key.currency0.settle(
+    //             poolManager,
+    //             address(this),
+    //             uint256(uint128(-delta.amount0())),
+    //             false
+    //         );
+    //     }
 
-        if (delta.amount0() > 0) {
-            key.currency0.take(
-                poolManager,
-                address(this),
-                uint256(uint128(delta.amount0())),
-                false
-            );
-        }
+    //     if (delta.amount0() > 0) {
+    //         key.currency0.take(
+    //             poolManager,
+    //             address(this),
+    //             uint256(uint128(delta.amount0())),
+    //             false
+    //         );
+    //     }
 
-        if (delta.amount1() < 0) {
-            key.currency1.settle(
-                poolManager,
-                address(this),
-                uint256(uint128(-delta.amount1())),
-                false
-            );
-        }
+    //     if (delta.amount1() < 0) {
+    //         key.currency1.settle(
+    //             poolManager,
+    //             address(this),
+    //             uint256(uint128(-delta.amount1())),
+    //             false
+    //         );
+    //     }
 
-        if (delta.amount1() > 0) {
-            key.currency1.take(
-                poolManager,
-                address(this),
-                uint256(uint128(delta.amount1())),
-                false
-            );
-        }
-        return ZERO_BYTES;
-    }
+    //     if (delta.amount1() > 0) {
+    //         key.currency1.take(
+    //             poolManager,
+    //             address(this),
+    //             uint256(uint128(delta.amount1())),
+    //             false
+    //         );
+    //     }
+    //     return ZERO_BYTES;
+    // }
 
     //TODO: remove in production
     function logBalances() internal view {
         console.log("> hook balances");
-        if (WSTETH.balanceOf(address(this)) > 0)
-            console.log("WSTETH", WSTETH.balanceOf(address(this)));
-        if (OSQTH.balanceOf(address(this)) > 0)
-            console.log("OSQTH ", OSQTH.balanceOf(address(this)));
         if (USDC.balanceOf(address(this)) > 0)
             console.log("USDC  ", USDC.balanceOf(address(this)));
         if (WETH.balanceOf(address(this)) > 0)
@@ -210,7 +206,11 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
 
     // --- Morpho Wrappers ---
 
-    function morphoBorrow(uint256 amount, uint256 shares) internal {
+    function morphoBorrow(
+        Id morphoMarketId,
+        uint256 amount,
+        uint256 shares
+    ) internal {
         morpho.borrow(
             morpho.idToMarketParams(morphoMarketId),
             amount,
@@ -220,7 +220,11 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         );
     }
 
-    function morphoReplay(uint256 amount, uint256 shares) internal {
+    function morphoReplay(
+        Id morphoMarketId,
+        uint256 amount,
+        uint256 shares
+    ) internal {
         morpho.repay(
             morpho.idToMarketParams(morphoMarketId),
             amount,
@@ -230,7 +234,10 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         );
     }
 
-    function morphoWithdrawCollateral(uint256 amount) internal {
+    function morphoWithdrawCollateral(
+        Id morphoMarketId,
+        uint256 amount
+    ) internal {
         morpho.withdrawCollateral(
             morpho.idToMarketParams(morphoMarketId),
             amount,
@@ -239,7 +246,10 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         );
     }
 
-    function morphoSupplyCollateral(uint256 amount) internal {
+    function morphoSupplyCollateral(
+        Id morphoMarketId,
+        uint256 amount
+    ) internal {
         morpho.supplyCollateral(
             morpho.idToMarketParams(morphoMarketId),
             amount,
@@ -248,7 +258,19 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         );
     }
 
-    function morphoSync() internal {
+    function expectedSupplyAssets(
+        Id morphoMarketId,
+        address owner
+    ) internal view returns (uint256) {
+        return
+            MorphoBalancesLib.expectedSupplyAssets(
+                morpho,
+                morpho.idToMarketParams(morphoMarketId),
+                owner
+            );
+    }
+
+    function morphoSync(Id morphoMarketId) internal {
         morpho.accrueInterest(morpho.idToMarketParams(morphoMarketId));
     }
 

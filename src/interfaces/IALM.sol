@@ -40,7 +40,7 @@ interface IALM {
         address to
     ) external returns (uint256 almId);
 
-    function withdraw(PoolKey calldata key, uint256 almId, address to) external;
+    // function withdraw(PoolKey calldata key, uint256 almId, address to) external;
 
     function getCurrentTick(PoolId poolId) external view returns (int24);
 

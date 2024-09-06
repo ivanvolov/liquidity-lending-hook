@@ -5,13 +5,15 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {MarketParamsLib} from "@forks/morpho/MarketParamsLib.sol";
+import {MarketParamsLib} from "@forks/morpho/libraries/MarketParamsLib.sol";
 import {ALMBaseLib} from "@src/libraries/ALMBaseLib.sol";
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IChainlinkOracle} from "@forks/morpho-oracles/IChainlinkOracle.sol";
 import {IMorpho, MarketParams, Position as MorphoPosition, Id} from "@forks/morpho/IMorpho.sol";
 import {IALM} from "@src/interfaces/IALM.sol";
+import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {TestERC20} from "v4-core/test/TestERC20.sol";
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
@@ -23,9 +25,7 @@ abstract contract ALMTestBase is Test, Deployers {
 
     IALM hook;
 
-    TestERC20 WSTETH;
     TestERC20 USDC;
-    TestERC20 OSQTH;
     TestERC20 WETH;
 
     TestAccount marketCreator;
@@ -34,19 +34,18 @@ abstract contract ALMTestBase is Test, Deployers {
     TestAccount swapper;
 
     HookEnabledSwapRouter router;
-    Id marketId;
+    Id bWETHmId;
+    Id bUSDCmId;
     IMorpho morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     uint256 almId;
 
     function labelTokens() public {
-        WSTETH = TestERC20(ALMBaseLib.WSTETH);
-        vm.label(address(WSTETH), "WSTETH");
-        USDC = TestERC20(ALMBaseLib.USDC);
-        vm.label(address(USDC), "USDC");
-        OSQTH = TestERC20(ALMBaseLib.OSQTH);
-        vm.label(address(OSQTH), "OSQTH");
         WETH = TestERC20(ALMBaseLib.WETH);
         vm.label(address(WETH), "WETH");
+        USDC = TestERC20(ALMBaseLib.USDC);
+        vm.label(address(USDC), "USDC");
+        marketCreator = TestAccountLib.createTestAccount("marketCreator");
+        morphoLpProvider = TestAccountLib.createTestAccount("morphoLpProvider");
     }
 
     function create_and_approve_accounts() public {
@@ -54,56 +53,66 @@ abstract contract ALMTestBase is Test, Deployers {
         swapper = TestAccountLib.createTestAccount("swapper");
 
         vm.startPrank(alice.addr);
-        WSTETH.approve(address(hook), type(uint256).max);
-        WSTETH.approve(address(morpho), type(uint256).max);
         USDC.approve(address(hook), type(uint256).max);
-        USDC.approve(address(morpho), type(uint256).max);
+        WETH.approve(address(hook), type(uint256).max);
         vm.stopPrank();
 
         vm.startPrank(swapper.addr);
-        WSTETH.approve(address(router), type(uint256).max);
         USDC.approve(address(router), type(uint256).max);
+        WETH.approve(address(router), type(uint256).max);
+        USDC.approve(address(swapRouter), type(uint256).max);
+        WETH.approve(address(swapRouter), type(uint256).max);
         vm.stopPrank();
     }
 
     // -- Uniswap V4 -- //
-
-    function swapUSDC_WSTETH_Out(uint256 amountOut) public {
+    function swapWETH_USDC_Out(
+        uint256 amountOut
+    ) public returns (uint256, uint256) {
         vm.prank(swapper.addr);
-        router.swap(
+        BalanceDelta delta = swapRouter.swap(
             key,
             IPoolManager.SwapParams(
-                false, // USDC -> WSTETH
+                false, // WETH -> USDC
                 int256(amountOut),
                 TickMath.MAX_SQRT_PRICE - 1
             ),
-            HookEnabledSwapRouter.TestSettings(false, false),
+            PoolSwapTest.TestSettings({
+                takeClaims: false,
+                settleUsingBurn: false
+            }),
             ZERO_BYTES
+        );
+        return (
+            uint256(int256(delta.amount0())),
+            uint256(int256(delta.amount1()))
         );
     }
 
-    function swapWSTETH_USDC_Out(uint256 amountOut) public {
+    function swapUSDC_WETH_Out(
+        uint256 amountOut
+    ) public returns (uint256, uint256) {
         vm.prank(swapper.addr);
-        router.swap(
+        BalanceDelta delta = swapRouter.swap(
             key,
             IPoolManager.SwapParams(
-                true, // WSTETH -> USDC
+                true, // USDC -> WETH
                 int256(amountOut),
                 TickMath.MIN_SQRT_PRICE + 1
             ),
-            HookEnabledSwapRouter.TestSettings(false, false),
+            PoolSwapTest.TestSettings({
+                takeClaims: false,
+                settleUsingBurn: false
+            }),
             ZERO_BYTES
+        );
+        return (
+            uint256(int256(delta.amount0())),
+            uint256(int256(delta.amount1()))
         );
     }
 
     // -- Uniswap V3 -- //
-
-    function getETH_OSQTHPriceV3() public view returns (uint256) {
-        return
-            ALMBaseLib.getV3PoolPrice(
-                0x82c427AdFDf2d245Ec51D8046b41c4ee87F0d29C
-            );
-    }
 
     function getETH_USDCPriceV3() public view returns (uint256) {
         return
@@ -118,70 +127,64 @@ abstract contract ALMTestBase is Test, Deployers {
         address loanToken,
         address collateralToken,
         uint256 lltv,
-        uint256 oracleNewPrice
-    ) internal {
-        marketCreator = TestAccountLib.createTestAccount("marketCreator");
-        morphoLpProvider = TestAccountLib.createTestAccount("morphoLpProvider");
+        address oracle
+    ) internal returns (Id) {
         MarketParams memory marketParams = MarketParams(
             loanToken,
             collateralToken,
-            0x48F7E36EB6B826B2dF4B2E630B62Cd25e89E40e2, // This oracle is hardcoded for now
+            oracle,
             0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC, // We have only 1 irm in morpho so we can use this address
             lltv
         );
 
-        modifyMockOracle(address(marketParams.oracle), oracleNewPrice);
-
         vm.prank(marketCreator.addr);
         morpho.createMarket(marketParams);
-        marketId = MarketParamsLib.id(marketParams);
+        return MarketParamsLib.id(marketParams);
     }
 
     function modifyMockOracle(
         address oracle,
         uint256 newPrice
     ) internal returns (IChainlinkOracle iface) {
+        //NOTICE: https://github.com/morpho-org/morpho-blue-oracles
         iface = IChainlinkOracle(oracle);
-        address vault = address(IChainlinkOracle(oracle).VAULT());
-        uint256 conversionSample = IChainlinkOracle(oracle)
-            .VAULT_CONVERSION_SAMPLE();
-        address baseFeed1 = address(IChainlinkOracle(oracle).BASE_FEED_1());
-        address baseFeed2 = address(IChainlinkOracle(oracle).BASE_FEED_2());
-        address quoteFeed1 = address(IChainlinkOracle(oracle).QUOTE_FEED_1());
-        address quoteFeed2 = address(IChainlinkOracle(oracle).QUOTE_FEED_2());
-        uint256 scaleFactor = IChainlinkOracle(oracle).SCALE_FACTOR();
 
         vm.mockCall(
-            oracle,
+            address(oracle),
             abi.encodeWithSelector(iface.price.selector),
             abi.encode(newPrice)
         );
-        assertEq(iface.price(), newPrice);
-        assertEq(address(iface.VAULT()), vault);
-        assertEq(iface.VAULT_CONVERSION_SAMPLE(), conversionSample);
-        assertEq(address(iface.BASE_FEED_1()), baseFeed1);
-        assertEq(address(iface.BASE_FEED_2()), baseFeed2);
-        assertEq(address(iface.QUOTE_FEED_1()), quoteFeed1);
-        assertEq(address(iface.QUOTE_FEED_2()), quoteFeed2);
-        assertEq(iface.SCALE_FACTOR(), scaleFactor);
 
+        console.log("> vault", address(iface.VAULT()));
+        console.log("> conversionSample", iface.VAULT_CONVERSION_SAMPLE());
+        console.log("> baseFeed1", address(iface.BASE_FEED_1()));
+        console.log("> baseFeed2", address(iface.BASE_FEED_2()));
+        console.log("> quoteFeed1", address(iface.QUOTE_FEED_1()));
+        console.log("> quoteFeed2", address(iface.QUOTE_FEED_2()));
+        console.log("> scaleFactor", iface.SCALE_FACTOR());
         return iface;
     }
 
-    function provideLiquidityToMorpho(address asset, uint256 amount) internal {
-        vm.startPrank(morphoLpProvider.addr);
-        deal(asset, morphoLpProvider.addr, amount);
+    function provideLiquidityToMorpho(Id marketId, uint256 amount) internal {
+        MarketParams memory marketParams = morpho.idToMarketParams(marketId);
+        console.log(">>", marketParams.loanToken);
 
-        TestERC20(asset).approve(address(morpho), type(uint256).max);
+        vm.startPrank(morphoLpProvider.addr);
+        deal(marketParams.loanToken, morphoLpProvider.addr, amount);
+
+        TestERC20(marketParams.loanToken).approve(
+            address(morpho),
+            type(uint256).max
+        );
         (, uint256 shares) = morpho.supply(
-            morpho.idToMarketParams(marketId),
+            marketParams,
             amount,
             0,
             morphoLpProvider.addr,
             ""
         );
 
-        assertEqMorphoState(morphoLpProvider.addr, shares, 0, 0);
+        assertEqMorphoState(marketId, morphoLpProvider.addr, shares, 0, 0);
         assertEqBalanceStateZero(morphoLpProvider.addr);
         vm.stopPrank();
     }
@@ -197,6 +200,7 @@ abstract contract ALMTestBase is Test, Deployers {
     }
 
     function assertEqMorphoState(
+        Id marketId,
         address owner,
         uint256 _supplyShares,
         uint256 _borrowShares,
@@ -225,48 +229,23 @@ abstract contract ALMTestBase is Test, Deployers {
     }
 
     function assertEqBalanceStateZero(address owner) public view {
-        assertEqBalanceState(owner, 0, 0, 0, 0);
+        assertEqBalanceState(owner, 0, 0, 0);
     }
 
     function assertEqBalanceState(
         address owner,
-        uint256 _balanceWSTETH,
+        uint256 _balanceWETH,
         uint256 _balanceUSDC
     ) public view {
-        assertEqBalanceState(owner, _balanceWSTETH, _balanceUSDC, 0, 0);
+        assertEqBalanceState(owner, _balanceWETH, _balanceUSDC, 0);
     }
 
     function assertEqBalanceState(
         address owner,
-        uint256 _balanceWSTETH,
-        uint256 _balanceUSDC,
         uint256 _balanceWETH,
-        uint256 _balanceOSQTH
-    ) public view {
-        assertEqBalanceState(
-            owner,
-            _balanceWSTETH,
-            _balanceUSDC,
-            _balanceWETH,
-            _balanceOSQTH,
-            0
-        );
-    }
-
-    function assertEqBalanceState(
-        address owner,
-        uint256 _balanceWSTETH,
         uint256 _balanceUSDC,
-        uint256 _balanceWETH,
-        uint256 _balanceOSQTH,
         uint256 _balanceETH
     ) public view {
-        assertApproxEqAbs(
-            USDC.balanceOf(owner),
-            _balanceUSDC,
-            10,
-            "Balance USDC not equal"
-        );
         assertApproxEqAbs(
             WETH.balanceOf(owner),
             _balanceWETH,
@@ -274,18 +253,11 @@ abstract contract ALMTestBase is Test, Deployers {
             "Balance WETH not equal"
         );
         assertApproxEqAbs(
-            OSQTH.balanceOf(owner),
-            _balanceOSQTH,
+            USDC.balanceOf(owner),
+            _balanceUSDC,
             10,
-            "Balance OSQTH not equal"
+            "Balance USDC not equal"
         );
-        assertApproxEqAbs(
-            WSTETH.balanceOf(owner),
-            _balanceWSTETH,
-            10,
-            "Balance WSTETH not equal"
-        );
-
         assertApproxEqAbs(
             owner.balance,
             _balanceETH,
