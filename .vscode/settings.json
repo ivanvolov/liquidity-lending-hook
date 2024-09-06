@@ -1,0 +1,22 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/artifacts": true,
+    "**/cache": true,
+    "**/external": true,
+    // "**/.vscode": true,
+    "**/cspell.dict": true,
+    "**/.forge-snapshots": true,
+    // "**/lib": true,
+    "**/out": true,
+    "**/.github": true,
+    "**/.git": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/out": true,
+    "**/.git": true,
+    // "**/lib": true
+  },
+  "cSpell.enabled": true
+}
