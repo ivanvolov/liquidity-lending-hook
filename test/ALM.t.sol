@@ -84,87 +84,33 @@ contract ALMTest is ALMTestBase {
         assertEqMorphoA(bWETHmId, address(hook), 0, 0, amountToDep0);
     }
 
-    // function test_swap_price_up_in() public {
-    //     uint256 usdcToSwap = 4487 * 1e6;
-    //     test_deposit();
+    function test_swap_price_up() public {
+        uint256 usdcToSwap = 1000 * 1e6;
+        test_deposit();
 
-    //     deal(address(USDC), address(swapper.addr), usdcToSwap);
-    //     assertEqBalanceState(swapper.addr, 0, usdcToSwap);
+        deal(address(USDC), address(swapper.addr), usdcToSwap);
+        assertEqBalanceState(swapper.addr, 0, usdcToSwap);
 
-    //     (, uint256 deltaWETH) = swapUSDC_WETH_In(usdcToSwap);
-    //     assertApproxEqAbs(deltaWETH, 1 ether, 1e12);
+        (, uint256 deltaWETH) = swapUSDC_WETH_In(usdcToSwap);
+        assertApproxEqAbs(deltaWETH, 220127287199035367, 1e1);
 
-    //     assertEqBalanceState(swapper.addr, deltaWETH, 0);
-    //     assertEqBalanceState(address(hook), 0, 0);
+        assertEqBalanceState(swapper.addr, deltaWETH, 0);
+        assertEqBalanceState(address(hook), 0, 0);
+    }
 
-    //     assertEqMorphoA(bWETHmId, address(hook), 0, 0, usdcToSwap);
-    //     assertEqMorphoA(bUSDCmId, address(hook), 0, 0, amountToDep - deltaWETH);
-    // }
+    function test_swap_price_down() public {
+        uint256 wethToSwap = 1 ether / 5;
+        test_deposit();
 
-    // function test_swap_price_up_out() public {
-    //     uint256 usdcToSwapQ = 4486999802; // this should be get from quoter
-    //     uint256 wethToGetFSwap = 1 ether;
-    //     test_deposit();
+        deal(address(WETH), address(swapper.addr), wethToSwap);
+        assertEqBalanceState(swapper.addr, wethToSwap, 0);
 
-    //     deal(address(USDC), address(swapper.addr), usdcToSwapQ);
-    //     assertEqBalanceState(swapper.addr, 0, usdcToSwapQ);
+        (uint256 deltaUSDC, ) = swapWETH_USDC_In(wethToSwap);
+        assertEq(deltaUSDC, 887490956);
 
-    //     (, uint256 deltaWETH) = swapUSDC_WETH_Out(wethToGetFSwap);
-    //     assertApproxEqAbs(deltaWETH, 1 ether, 1e1);
-
-    //     assertEqBalanceState(swapper.addr, deltaWETH, 0);
-    //     assertEqBalanceState(address(hook), 0, 0);
-
-    //     assertEqMorphoA(bWETHmId, address(hook), 0, 0, usdcToSwapQ);
-    //     assertEqMorphoA(bUSDCmId, address(hook), 0, 0, amountToDep - deltaWETH);
-    // }
-
-    // function test_swap_price_down_in() public {
-    //     uint256 wethToSwap = 1 ether;
-    //     test_deposit();
-
-    //     deal(address(WETH), address(swapper.addr), wethToSwap);
-    //     assertEqBalanceState(swapper.addr, wethToSwap, 0);
-
-    //     (uint256 deltaUSDC, ) = swapWETH_USDC_In(wethToSwap);
-    //     assertEq(deltaUSDC, 4486999802);
-
-    //     assertEqBalanceState(swapper.addr, 0, deltaUSDC);
-    //     assertEqBalanceState(address(hook), 0, 0);
-
-    //     assertEqMorphoA(bWETHmId, address(hook), 0, 0, 0);
-    //     assertEqMorphoA(
-    //         bUSDCmId,
-    //         address(hook),
-    //         0,
-    //         deltaUSDC,
-    //         amountToDep + wethToSwap
-    //     );
-    // }
-
-    // function test_swap_price_down_out() public {
-    //     uint256 wethToSwapQ = 999999911749086355;
-    //     uint256 usdcToGetFSwap = 4486999802;
-    //     test_deposit();
-
-    //     deal(address(WETH), address(swapper.addr), wethToSwapQ);
-    //     assertEqBalanceState(swapper.addr, wethToSwapQ, 0);
-
-    //     (uint256 deltaUSDC, ) = swapWETH_USDC_Out(usdcToGetFSwap);
-    //     assertEq(deltaUSDC, usdcToGetFSwap);
-
-    //     // assertEqBalanceState(swapper.addr, 0, deltaUSDC);
-    //     // assertEqBalanceState(address(hook), 0, 0);
-
-    //     // assertEqMorphoA(bWETHmId, address(hook), 0, 0, 0);
-    //     // assertEqMorphoA(
-    //     //     bUSDCmId,
-    //     //     address(hook),
-    //     //     0,
-    //     //     deltaUSDC,
-    //     //     amountToDep + wethToSwap
-    //     // );
-    // }
+        assertEqBalanceState(swapper.addr, 0, deltaUSDC);
+        assertEqBalanceState(address(hook), 0, 0);
+    }
 
     // -- Helpers --
 
