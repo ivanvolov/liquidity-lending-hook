@@ -58,8 +58,8 @@ contract ALMTest is ALMTestBase {
         vm.stopPrank();
     }
 
-    uint256 amountToDep0 = 100 * 1e6;
-    uint256 amountToDep1 = 100 ether;
+    uint256 amountToDep0 = 4486999999;
+    uint256 amountToDep1 = 943787075944092628;
 
     function test_deposit() public {
         uint160 priceUpperTick = 1120455419495722767724861208920064; // 191144 or 5000 usdc for eth
@@ -70,17 +70,18 @@ contract ALMTest is ALMTestBase {
         vm.prank(alice.addr);
         almId = hook.deposit(
             key,
-            1 ether,
+            4487 * 1e6,
             1 ether,
             priceUpperTick,
             priceLowerTick,
             alice.addr
         );
+        assertEq(almId, 0);
 
-        // assertEqBalanceStateZero(alice.addr);
-        // assertEqBalanceStateZero(address(hook));
-        // assertEqMorphoA(bUSDCmId, address(hook), 0, 0, amountToDep);
-        // assertEqMorphoA(bWETHmId, address(hook), 0, 0, 0);
+        assertEqBalanceStateZero(alice.addr);
+        assertEqBalanceStateZero(address(hook));
+        assertEqMorphoA(bUSDCmId, address(hook), 0, 0, amountToDep1);
+        assertEqMorphoA(bWETHmId, address(hook), 0, 0, amountToDep0);
     }
 
     // function test_swap_price_up_in() public {

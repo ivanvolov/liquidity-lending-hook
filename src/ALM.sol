@@ -97,23 +97,24 @@ contract ALM is BaseStrategyHook, ERC721 {
             );
 
         if (liquidity == 0) revert ZeroLiquidity();
-        USDC.transferFrom(msg.sender, address(this), amount0);
-        WETH.transferFrom(msg.sender, address(this), amount1);
+        console.log("_amount0", _amount0);
+        console.log("_amount1", _amount1);
+        USDC.transferFrom(msg.sender, address(this), _amount0);
+        WETH.transferFrom(msg.sender, address(this), _amount1);
 
         morphoSupplyCollateral(bUSDCmId, WETH.balanceOf(address(this)));
         morphoSupplyCollateral(bWETHmId, USDC.balanceOf(address(this)));
-        almId = almIdCounter;
 
-        almInfo[almId] = ALMInfo({
+        almInfo[almIdCounter] = ALMInfo({
             liquidity: liquidity,
             sqrtPriceUpperX96: sqrtPriceUpperX96,
             sqrtPriceLowerX96: sqrtPriceLowerX96,
-            amount0: amount0,
-            amount1: amount1,
+            amount0: _amount0,
+            amount1: _amount1,
             owner: to
         });
 
-        _mint(to, almId);
+        _mint(to, almIdCounter);
         almIdCounter++;
     }
 
