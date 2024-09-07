@@ -13,7 +13,7 @@ import {ErrorsLib} from "@forks/morpho/libraries/ErrorsLib.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
 import {ALM} from "@src/ALM.sol";
-import {IALM} from "@src/interfaces/IALM.sol";
+import {IALM, IOracle} from "@src/interfaces/IALM.sol";
 
 contract ALMTest is ALMTestBase {
     using PoolIdLibrary for PoolId;
@@ -26,6 +26,12 @@ contract ALMTest is ALMTestBase {
         create_and_seed_morpho_markets();
         init_hook();
         create_and_approve_accounts();
+
+        vm.mockCall(
+            address(0xdDb6F90fFb4d3257dd666b69178e5B3c5Bf41136),
+            abi.encodeWithSelector(IOracle.latestAnswer.selector),
+            abi.encode(4487 * 1e6)
+        );
     }
 
     function test_morpho_blue_markets() public {
@@ -77,6 +83,8 @@ contract ALMTest is ALMTestBase {
             alice.addr
         );
         assertEq(almId, 0);
+
+        hook.calculateTVLRation();
 
         assertEqBalanceStateZero(alice.addr);
         assertEqBalanceStateZero(address(hook));

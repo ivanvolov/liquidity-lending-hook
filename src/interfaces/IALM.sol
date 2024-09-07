@@ -46,4 +46,10 @@ interface IALM {
     function getCurrentTick(PoolId poolId) external view returns (int24);
 
     function setInitialPrise(uint160 initialSQRTPrice) external;
+
+    function calculateTVLRation() external view returns (uint256);
+}
+
+interface IOracle {
+    function latestAnswer() external view returns (int256);
 }

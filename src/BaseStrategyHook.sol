@@ -19,10 +19,12 @@ import {IERC20Minimal as IERC20} from "v4-core/interfaces/external/IERC20Minimal
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IWETH} from "@forks/IWETH.sol";
 import {IMorpho, Id} from "@forks/morpho/IMorpho.sol";
-import {IALM} from "@src/interfaces/IALM.sol";
+import {IALM, IOracle} from "@src/interfaces/IALM.sol";
 import {MorphoBalancesLib} from "@forks/morpho/libraries/MorphoBalancesLib.sol";
 
-abstract contract BaseStrategyHook is BaseHook, IALM {
+import {MainDemoConsumerBase} from "@redstone-finance/data-services/MainDemoConsumerBase.sol";
+
+abstract contract BaseStrategyHook is BaseHook, MainDemoConsumerBase, IALM {
     error NotHookDeployer();
     using CurrencySettler for Currency;
 
@@ -33,6 +35,25 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
     Id public immutable bUSDCmId;
 
     uint160 public sqrtPriceCurrent;
+    uint128 public totalLiquidity;
+
+    function calculateTVLRation(uint128 deltaLiquidity) public view returns (uint256) {
+        //@ Notice: I wanted to add volatility and TVL feed to the formula but have not time to do it.
+
+        // uint256 ethPrice = getOracleNumericValueFromTxMsg(
+        //     bytes32(
+        //         0x7765455448000000000000000000000000000000000000000000000000000000
+        //     )
+        // );
+        //@ Notice: I use this here cause can't find more elegant they to mock the new oracle push function at 12 PM;)
+        
+        int256 ethPrice = IOracle(0xdDb6F90fFb4d3257dd666b69178e5B3c5Bf41136)
+            .latestAnswer();
+
+        uint256 ratio = (deltaLiquidity * 1e18 / totalLiquidity ) * ethPrice/ ; 
+        
+        console.log("ethPrice", uint256(ethPrice));
+    }
 
     function setInitialPrise(
         uint160 initialSQRTPrice
