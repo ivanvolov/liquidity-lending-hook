@@ -84,8 +84,6 @@ contract ALMTest is ALMTestBase {
         );
         assertEq(almId, 0);
 
-        hook.calculateTVLRation();
-
         assertEqBalanceStateZero(alice.addr);
         assertEqBalanceStateZero(address(hook));
         assertEqMorphoA(bUSDCmId, address(hook), 0, 0, amountToDep1);
@@ -154,7 +152,6 @@ contract ALMTest is ALMTestBase {
 
         hook = IALM(hookAddress);
 
-        int24 deltaTick = 3000;
         hook.setInitialPrise(initialSQRTPrice);
 
         // This is needed in order to simulate proper accounting

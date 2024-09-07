@@ -147,6 +147,8 @@ contract ALM is BaseStrategyHook, ERC721 {
             redeemIfNotEnough(address(WETH), wethOut, bUSDCmId);
             key.currency1.settle(poolManager, address(this), wethOut, false);
 
+            loadSomeTVLUsingOracleDeltas();
+
             return (this.beforeSwap.selector, beforeSwapDelta, 0);
         } else {
             console.log("> WETH price go down...");
@@ -165,10 +167,24 @@ contract ALM is BaseStrategyHook, ERC721 {
             key.currency0.settle(poolManager, address(this), usdcOut, false);
             console.log("(5)");
 
+            loadSomeTVLUsingOracleDeltas();
+
             return (this.beforeSwap.selector, beforeSwapDelta, 0);
         }
+    }
 
-        //TODO: maybe add here the same rebalancing mechanism to keep reserve in ratio
+    function loadSomeTVLUsingOracleDeltas() internal {
+        uint128 newSqrtPrice = 1167901662291329671836227151593472; // Yes hardcoded it here cause it's hard to calculate it in NoOp hook with all Uniswap Math and tick mapping.
+
+        if (newSqrtPrice > lastWeightedPrice()) {
+            uint256 assets = supplyAssets(bUSDCmId, address(this));
+            if (assets > 0)
+                morphoWithdrawCollateral(bUSDCmId, (assets / 100) * 5); //Like 5% of assets
+        } else {
+            uint256 assets = supplyAssets(bWETHmId, address(this));
+            if (assets > 0)
+                morphoWithdrawCollateral(bWETHmId, (assets / 100) * 5); //Like 5% of assets
+        }
     }
 
     function getZeroForOneDeltas(

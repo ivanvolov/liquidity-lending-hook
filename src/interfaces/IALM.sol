@@ -47,7 +47,7 @@ interface IALM {
 
     function setInitialPrise(uint160 initialSQRTPrice) external;
 
-    function calculateTVLRation() external view returns (uint256);
+    function lastWeightedPrice() external view returns (uint256);
 }
 
 interface IOracle {
