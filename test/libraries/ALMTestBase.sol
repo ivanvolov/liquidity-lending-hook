@@ -200,14 +200,6 @@ abstract contract ALMTestBase is Test, Deployers {
 
     // -- Custom assertions -- //
 
-    function assertALMV4PositionLiquidity(
-        uint256 _almId,
-        uint256 _liquidity
-    ) public view {
-        (uint128 liquidity, , ) = hook.getALMPosition(key, _almId);
-        assertApproxEqAbs(liquidity, _liquidity, 10, "liquidity not equal");
-    }
-
     function assertEqMorphoState(
         Id marketId,
         address owner,

@@ -32,18 +32,11 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
     Id public immutable bWETHmId;
     Id public immutable bUSDCmId;
 
-    uint128 public liquidity;
     uint160 public sqrtPriceCurrent;
-    int24 public tickLower;
-    int24 public tickUpper;
 
-    function setBoundaries(
-        uint160 initialSQRTPrice,
-        int24 _tickUpper,
-        int24 _tickLower
+    function setInitialPrise(
+        uint160 initialSQRTPrice
     ) external onlyHookDeployer {
-        tickUpper = _tickUpper;
-        tickLower = _tickLower;
         sqrtPriceCurrent = initialSQRTPrice;
     }
 
@@ -135,80 +128,6 @@ abstract contract BaseStrategyHook is BaseHook, IALM {
         (, int24 currentTick, , ) = StateLibrary.getSlot0(poolManager, poolId);
         return currentTick;
     }
-
-    function getALMPosition(
-        PoolKey memory key,
-        uint256 almId
-    ) public view override returns (uint128, int24, int24) {
-        ALMInfo memory info = almInfo[almId];
-
-        (uint128 liquidity, , ) = StateLibrary.getPositionInfo(
-            poolManager,
-            PoolIdLibrary.toId(key),
-            address(this),
-            info.tickLower,
-            info.tickUpper,
-            bytes32(ZERO_BYTES)
-        );
-        return (liquidity, info.tickLower, info.tickUpper);
-    }
-
-    // function unlockModifyPosition(
-    //     PoolKey calldata key,
-    //     int128 liquidity,
-    //     int24 tickLower,
-    //     int24 tickUpper
-    // ) external selfOnly returns (bytes memory) {
-    //     console.log("> unlockModifyPosition");
-
-    //     (BalanceDelta delta, ) = poolManager.modifyLiquidity(
-    //         key,
-    //         IPoolManager.ModifyLiquidityParams({
-    //             tickLower: tickLower,
-    //             tickUpper: tickUpper,
-    //             liquidityDelta: liquidity,
-    //             salt: bytes32(ZERO_BYTES)
-    //         }),
-    //         ZERO_BYTES
-    //     );
-
-    //     if (delta.amount0() < 0) {
-    //         key.currency0.settle(
-    //             poolManager,
-    //             address(this),
-    //             uint256(uint128(-delta.amount0())),
-    //             false
-    //         );
-    //     }
-
-    //     if (delta.amount0() > 0) {
-    //         key.currency0.take(
-    //             poolManager,
-    //             address(this),
-    //             uint256(uint128(delta.amount0())),
-    //             false
-    //         );
-    //     }
-
-    //     if (delta.amount1() < 0) {
-    //         key.currency1.settle(
-    //             poolManager,
-    //             address(this),
-    //             uint256(uint128(-delta.amount1())),
-    //             false
-    //         );
-    //     }
-
-    //     if (delta.amount1() > 0) {
-    //         key.currency1.take(
-    //             poolManager,
-    //             address(this),
-    //             uint256(uint128(delta.amount1())),
-    //             false
-    //         );
-    //     }
-    //     return ZERO_BYTES;
-    // }
 
     //TODO: remove in production
     function logBalances() internal view {

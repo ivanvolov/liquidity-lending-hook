@@ -16,12 +16,12 @@ interface IALM {
     error NoSwapWillOccur();
 
     struct ALMInfo {
-        uint256 amount;
-        int24 tick;
-        int24 tickLower;
-        int24 tickUpper;
-        uint256 created;
-        uint256 fee;
+        uint128 liquidity;
+        uint160 sqrtPriceUpperX96;
+        uint160 sqrtPriceLowerX96;
+        uint256 amount0;
+        uint256 amount1;
+        address owner;
     }
 
     function getALMInfo(uint256 almId) external view returns (ALMInfo memory);
@@ -36,22 +36,14 @@ interface IALM {
 
     function deposit(
         PoolKey calldata key,
-        uint256 amount,
+        uint256 amount0,
+        uint256 amount1,
+        uint160 sqrtPriceUpperX96,
+        uint160 sqrtPriceLowerX96,
         address to
     ) external returns (uint256 almId);
 
-    // function withdraw(PoolKey calldata key, uint256 almId, address to) external;
-
     function getCurrentTick(PoolId poolId) external view returns (int24);
 
-    function getALMPosition(
-        PoolKey memory key,
-        uint256 almId
-    ) external view returns (uint128, int24, int24);
-
-    function setBoundaries(
-        uint160 initialSQRTPrice,
-        int24 _tickUpper,
-        int24 _tickLower
-    ) external;
+    function setInitialPrise(uint160 initialSQRTPrice) external;
 }
