@@ -19,6 +19,7 @@ import {TestERC20} from "v4-core/test/TestERC20.sol";
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {HookEnabledSwapRouter} from "@test/libraries/HookEnabledSwapRouter.sol";
 import {TestAccount, TestAccountLib} from "@test/libraries/TestAccountLib.t.sol";
+import {MorphoBalancesLib} from "@forks/morpho/libraries/MorphoBalancesLib.sol";
 
 abstract contract ALMTestBase is Test, Deployers {
     using TestAccountLib for TestAccount;
@@ -55,6 +56,9 @@ abstract contract ALMTestBase is Test, Deployers {
         vm.startPrank(alice.addr);
         USDC.approve(address(hook), type(uint256).max);
         WETH.approve(address(hook), type(uint256).max);
+
+        USDC.approve(address(morpho), type(uint256).max);
+        WETH.approve(address(morpho), type(uint256).max);
         vm.stopPrank();
 
         vm.startPrank(swapper.addr);
@@ -66,39 +70,44 @@ abstract contract ALMTestBase is Test, Deployers {
     }
 
     // -- Uniswap V4 -- //
+
     function swapWETH_USDC_Out(
-        uint256 amountOut
+        uint256 amount
     ) public returns (uint256, uint256) {
-        vm.prank(swapper.addr);
-        BalanceDelta delta = swapRouter.swap(
-            key,
-            IPoolManager.SwapParams(
-                false, // WETH -> USDC
-                int256(amountOut),
-                TickMath.MAX_SQRT_PRICE - 1
-            ),
-            PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            }),
-            ZERO_BYTES
-        );
-        return (
-            uint256(int256(delta.amount0())),
-            uint256(int256(delta.amount1()))
-        );
+        return swap(false, int256(amount));
+    }
+
+    function swapWETH_USDC_In(
+        uint256 amount
+    ) public returns (uint256, uint256) {
+        return swap(false, -int256(amount));
     }
 
     function swapUSDC_WETH_Out(
-        uint256 amountOut
+        uint256 amount
     ) public returns (uint256, uint256) {
+        return swap(true, int256(amount));
+    }
+
+    function swapUSDC_WETH_In(
+        uint256 amount
+    ) public returns (uint256, uint256) {
+        return swap(true, -int256(amount));
+    }
+
+    function swap(
+        bool zeroForOne,
+        int256 amount
+    ) internal returns (uint256, uint256) {
         vm.prank(swapper.addr);
         BalanceDelta delta = swapRouter.swap(
             key,
             IPoolManager.SwapParams(
-                true, // USDC -> WETH
-                int256(amountOut),
-                TickMath.MIN_SQRT_PRICE + 1
+                zeroForOne,
+                amount,
+                zeroForOne == true
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
             ),
             PoolSwapTest.TestSettings({
                 takeClaims: false,
@@ -219,6 +228,44 @@ abstract contract ALMTestBase is Test, Deployers {
             _borrowShares,
             10,
             "borrow shares not equal"
+        );
+        assertApproxEqAbs(
+            p.collateral,
+            _collateral,
+            10000,
+            "collateral not equal"
+        );
+    }
+
+    function assertEqMorphoA(
+        Id marketId,
+        address owner,
+        uint256 _supplyAssets,
+        uint256 _borrowAssets,
+        uint256 _collateral
+    ) public view {
+        MorphoPosition memory p;
+        p = morpho.position(marketId, owner);
+
+        assertApproxEqAbs(
+            MorphoBalancesLib.expectedSupplyAssets(
+                morpho,
+                morpho.idToMarketParams(marketId),
+                owner
+            ),
+            _supplyAssets,
+            10,
+            "supply assets not equal"
+        );
+        assertApproxEqAbs(
+            MorphoBalancesLib.expectedBorrowAssets(
+                morpho,
+                morpho.idToMarketParams(marketId),
+                owner
+            ),
+            _borrowAssets,
+            10,
+            "borrow assets not equal"
         );
         assertApproxEqAbs(
             p.collateral,

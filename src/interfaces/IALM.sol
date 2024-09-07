@@ -48,4 +48,10 @@ interface IALM {
         PoolKey memory key,
         uint256 almId
     ) external view returns (uint128, int24, int24);
+
+    function setBoundaries(
+        uint160 initialSQRTPrice,
+        int24 _tickUpper,
+        int24 _tickLower
+    ) external;
 }
