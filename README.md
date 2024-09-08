@@ -17,7 +17,7 @@ https://www.loom.com/share/c2c9518a8a2342bd9451388857522431
 ## Applicable Tracks
 RedStone Bounty track
 
-## Brief description on how your project fits into RedStone: RedStone Bounty track
+## Brief description on how your project fits into bounty track
 
 YieldYoda optimizes Uniswap V4 liquidity provision by leveraging Morpho lending protocols and Redstone oracles:
 
@@ -27,7 +27,7 @@ After trades executed, any excess liquidity is quickly redeposited into Morpho t
 
 ## Team members & Wallets for Ticker recovery
 - Ivan: 0x34595bF7Cd411608F526BAF9f7923bB1F1F63F89
-- Yevhen
+- Yevhen: 0x34595bF7Cd411608F526BAF9f7923bB1F1F63F89
 
 
 
