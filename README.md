@@ -4,7 +4,7 @@ Maximizing Uniswap LP yields with Morpho lending protocols and Redstone oracles 
 
 ## The problem it solves
 
-It improves Uniswap LP performance and ehnance execution for traders.
+YieldYoda improves Uniswap LP performance and enhances execution for traders. It lends idle funds through Morpho and uses Redstone's real-time price oracles to predict market movements. By withdrawing funds on-demand only when needed, it maximizes yields and cuts gas costs. The result: higher returns for LPs and optimal liquidity for trades.
 
 ## Challenges we ran into
 
